@@ -67,11 +67,15 @@ private struct LastTurnReviewFileView: View {
   }
 
   private func diffRows(_ diff: ReviewDiff) -> some View {
+    // The file header already identifies the patch. Keep binary/metadata-only
+    // changes visible, but omit raw Git headers from textual code rows.
+    let lines = diff.lines.contains(where: \.canComment)
+      ? diff.lines.filter { $0.kind != .metadata } : diff.lines
     let columnWidth = store.reviewDiffSplit && !store.reviewDiffWrap
       ? ReviewSplitMetrics.minimumColumnWidth(lines: diff.lines, appearance: store.appearance) : 0
     return LazyVStack(alignment: .leading, spacing: 0) {
       if store.reviewDiffSplit {
-        ForEach(GitHubPRSplitLine.rows(diff.lines)) { row in
+        ForEach(GitHubPRSplitLine.rows(lines)) { row in
           if let line = row.left, line.kind == .header || line.kind == .metadata {
             codeLine(line, diff: diff)
             comments(for: [line], diff: diff)
@@ -85,7 +89,7 @@ private struct LastTurnReviewFileView: View {
           }
         }
       } else {
-        ForEach(diff.lines) { line in
+        ForEach(lines) { line in
           codeLine(line, diff: diff)
           comments(for: [line], diff: diff)
         }

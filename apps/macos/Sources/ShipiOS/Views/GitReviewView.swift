@@ -7,6 +7,10 @@ struct GitReviewView: View {
   var focusComposer: (() -> Void)?
   @State private var jumpTarget: ReviewFileJump.Target?
   @State private var jumpRequest = UUID()
+  @State private var selectedTreePath: String?
+  @State private var fileTreeVisible = true
+  @State private var showingCompactFileTree = false
+  @State private var reviewWidth: CGFloat = 0
   var body: some View {
     VStack(spacing: 0) {
       if !workspace.reviewRepositories.isEmpty {
@@ -28,6 +32,12 @@ struct GitReviewView: View {
         HStack {
           if workspace.reviewScope == .lastTurn {
             Label("最近一轮", systemImage: "clock.arrow.circlepath")
+            if let snapshot = workspace.lastTurnReview {
+              Text("+\(snapshot.patches.values.reduce(0) { $0 + $1.additions })")
+                .foregroundStyle(store.appearance.diffAddedColor)
+              Text("-\(snapshot.patches.values.reduce(0) { $0 + $1.deletions })")
+                .foregroundStyle(store.appearance.diffRemovedColor)
+            }
           } else if taskID == nil {
             Button { store.openBranchPicker() } label: {
               Label(workspace.gitBranch, systemImage: "arrow.triangle.branch").lineLimit(1)
@@ -36,14 +46,17 @@ struct GitReviewView: View {
             Label(workspace.gitBranch, systemImage: "arrow.triangle.branch").lineLimit(1)
           }
           Spacer()
-          ReviewFileJumpView(paths: reviewPaths) { path in
-            guard let target = ReviewFileJump.target(path: path, scope: workspace.reviewScope,
-              root: workspace.gitRoot, selection: reviewSelection, revision: reviewRevision,
-              files: workspace.visibleChanges, lastTurn: workspace.lastTurnReview) else { return }
-            workspace.collapsedReviewFiles.remove(target.collapseKey)
-            jumpTarget = target
-            jumpRequest = UUID()
-          }
+          ReviewFileJumpView(paths: reviewPaths, select: selectReviewFile)
+          Button {
+            if reviewWidth >= 620 { fileTreeVisible.toggle() }
+            else { showingCompactFileTree = true }
+          } label: { Image(systemName: "sidebar.right") }
+            .buttonStyle(.plain).help("变更文件树")
+            .accessibilityLabel("显示或隐藏变更文件树")
+            .popover(isPresented: $showingCompactFileTree, arrowEdge: .bottom) {
+              fileTree { path in selectReviewFile(path); showingCompactFileTree = false }
+                .frame(width: 280, height: 380)
+            }
           Menu {
             Button(store.reviewDiffWrap ? "关闭自动换行" : "开启自动换行") {
               store.reviewDiffWrap.toggle()
@@ -123,27 +136,35 @@ struct GitReviewView: View {
         } else if workspace.reviewScope != .lastTurn && workspace.visibleChanges.isEmpty && workspace.error == nil {
           Text(emptyMessage).appFont(.caption).foregroundStyle(.secondary).padding()
         }
-        ScrollViewReader { proxy in
-          ScrollView {
-            LazyVStack(alignment: .leading, spacing: 10) {
-              if !workspace.gitRefreshing, workspace.reviewScope == .lastTurn, let snapshot = workspace.lastTurnReview {
-                LastTurnReviewView(store: store, workspace: workspace, snapshot: snapshot, taskID: taskID)
-              } else if !workspace.reviewLoading && !workspace.gitRefreshing
-                && !workspace.reviewArguments.isEmpty, let root = workspace.gitRoot
-              {
-                ForEach(workspace.visibleChanges) { file in
-                  ReviewFileView(
-                    store: store, workspace: workspace, file: file, root: root,
-                    scope: workspace.reviewScope, revision: reviewRevision, taskID: taskID
-                  )
-                  .id(root.path + ":" + reviewSelection + ":" + file.path)
-                }
+        GeometryReader { geometry in
+          HStack(spacing: 0) {
+            ScrollViewReader { proxy in
+              ScrollView {
+                LazyVStack(alignment: .leading, spacing: 10) {
+                  if !workspace.gitRefreshing, workspace.reviewScope == .lastTurn, let snapshot = workspace.lastTurnReview {
+                    LastTurnReviewView(store: store, workspace: workspace, snapshot: snapshot, taskID: taskID)
+                  } else if !workspace.reviewLoading && !workspace.gitRefreshing
+                    && !workspace.reviewArguments.isEmpty, let root = workspace.gitRoot
+                  {
+                    ForEach(workspace.visibleChanges) { file in
+                      ReviewFileView(
+                        store: store, workspace: workspace, file: file, root: root,
+                        scope: workspace.reviewScope, revision: reviewRevision, taskID: taskID
+                      )
+                      .id(root.path + ":" + reviewSelection + ":" + file.path)
+                    }
+                  }
+                }.padding(10)
               }
-            }.padding(10)
-          }
-          .onChange(of: jumpRequest) { _, _ in
-            if let jumpTarget { proxy.scrollTo(jumpTarget.anchor, anchor: .top) }
-          }
+              .onChange(of: jumpRequest) { _, _ in
+                if let jumpTarget { proxy.scrollTo(jumpTarget.anchor, anchor: .top) }
+              }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            if geometry.size.width >= 620, fileTreeVisible {
+              Divider()
+              fileTree(selectReviewFile).frame(width: 220)
+            }
+          }.onChange(of: geometry.size.width, initial: true) { _, width in reviewWidth = width }
         }.frame(maxHeight: .infinity)
         if !store.reviewComments(taskID: taskID).isEmpty {
           HStack {
@@ -178,7 +199,7 @@ struct GitReviewView: View {
         if let error = workspace.fileOpenError {
           Text(error).appFont(.caption).foregroundStyle(.orange).textSelection(.enabled).padding(10)
         }
-        if !workspace.gitReviewLastTurnOnly {
+        if !workspace.gitReviewLastTurnOnly && workspace.reviewScope != .lastTurn {
           if !workspace.canCommit && !workspace.reviewScope.isHistorical && !store.library.gitPreferences.readOnlyReview {
             Text("Git 状态暂不可用，请刷新变更后重试。").appFont(.caption).foregroundStyle(.secondary)
               .padding(
@@ -242,6 +263,8 @@ struct GitReviewView: View {
     }
     .onChange(of: reviewSelection) { old, _ in
       jumpTarget = nil
+      selectedTreePath = nil
+      showingCompactFileTree = false
       workspace.cancelCommitMessageGeneration()
       workspace.discardPlan = nil
       workspace.reviewPath = nil
@@ -266,6 +289,29 @@ struct GitReviewView: View {
 
   private var reviewRevision: String {
     workspace.reviewArguments.joined(separator: " ")
+  }
+
+  private func selectReviewFile(_ path: String) {
+    guard let target = ReviewFileJump.target(path: path, scope: workspace.reviewScope,
+      root: workspace.gitRoot, selection: reviewSelection, revision: reviewRevision,
+      files: workspace.visibleChanges, lastTurn: workspace.lastTurnReview) else { return }
+    workspace.collapsedReviewFiles.remove(target.collapseKey)
+    selectedTreePath = path
+    jumpTarget = target
+    jumpRequest = UUID()
+  }
+
+  private func fileTree(_ select: @escaping (String) -> Void) -> some View {
+    var counts: [String: (added: Int, removed: Int)] = [:]
+    if workspace.reviewScope == .lastTurn, let snapshot = workspace.lastTurnReview {
+      for file in snapshot.files {
+        if let patch = snapshot.patches[file.id] {
+          counts[file.path] = (patch.additions, patch.deletions)
+        }
+      }
+    }
+    return ReviewFileTreeView(paths: reviewPaths, selectedPath: selectedTreePath,
+      counts: counts, select: select)
   }
 
   private var reviewPaths: [String] {
