@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "verifiedAt": "2026-10-14T12:32:19.338411+08:00",
+  "verifiedAt": "2026-10-14T13:13:53.149741+08:00",
   "status": "not_accepted",
   "productCommit": "ca427eed3cab1d7ca481d78b23d848651670371a",
   "testCommit": "eabb236e71b4883527e163e2c7c423cc3f96d88b",
@@ -31,7 +31,6 @@
       "A20",
       "A21",
       "A22",
-      "A23",
       "A24",
       "A25",
       "A26",
@@ -40,11 +39,12 @@
       "A29"
     ],
     "pending": [
+      "A23",
       "A30",
       "A31",
       "A32"
     ],
-    "passedCount": 29,
+    "passedCount": 28,
     "total": 32
   },
   "checks": {
@@ -176,18 +176,21 @@
     ".cache/delivery/t11-final/delivery-reference-validation.json": "cd2893732471f0ec34bab0d62390ea95004895b2186bbddd2a019d539563cdeb",
     ".cache/delivery/t27-notifications/a09-diagnosis/diagnostic-validation.json": "fab23dc3018df70052def843588af31a703b4312a5e7963d419b880fb86123a8",
     ".cache/delivery/t11-final/a30-access-review/validation.json": "0405277c2f2a433624f4515d3510121614d888e82072cad1b46f58da9d299129",
-    ".cache/delivery/t11-final/content-font-size/validation.json": "19dd6b725a825826c9f7bc8d59cd23c205fb19c560aed132993c500c4127cc3f"
+    ".cache/delivery/t11-final/content-font-size/validation.json": "19dd6b725a825826c9f7bc8d59cd23c205fb19c560aed132993c500c4127cc3f",
+    ".cache/delivery/t11-final/a30-followup/in-progress.json": "510fce316ddbf5eba16f24792f50fd33b2085456b46d77993868bd6393e34ae8"
   },
   "deliveryGate": {
     "ready": false,
     "A32DocumentAudit": "Historical audit preserved; new candidate final audit pending",
     "blockingPrerequisites": [
+      "A23",
       "A30",
       "A31"
     ],
     "A09": "passed: clean candidate original background policy OS notice seen/clicked by human; correct task/reply, source draft and user-instance restore verified",
     "A30": "Three manual reference pages received, remaining fixed groups and differences pending",
-    "A31": "Pending final candidate full standard and foreground suite"
+    "A31": "Pending final candidate full standard and foreground suite",
+    "A23": "Reopened: native confirmation-to-search focus failed; latest clean native check not run because Cua reports Mac locked"
   },
   "knownRisk": "One historical pinned-restore initialization timeout remains unexplained; original method passed latest full run; failure evidence retained",
   "runtimeAfterAudit": "Original user instance restored through standard build and actual composer focus verified; seven protected fields, nine runs and model unchanged; no API call",
@@ -281,5 +284,59 @@
     "userProtection": "seven fields, nine runs and model unchanged; standard user instance restored with actual focus",
     "evidence": "v0.1-reference-batch1.md and evidence sections 97/98"
   },
-  "legacyTopLevelCandidateFields": "productCommit, testCommit, sourceInputCount, changedInputs, checks and artifacts retain their historical candidate binding; currentCandidate identifies the new product."
+  "legacyTopLevelCandidateFields": "productCommit, testCommit, sourceInputCount, changedInputs, checks and artifacts retain their historical candidate binding; currentCandidate identifies the new product.",
+  "priorAcceptedCandidate": {
+    "passed": [
+      "A01",
+      "A02",
+      "A03",
+      "A04",
+      "A05",
+      "A06",
+      "A07",
+      "A08",
+      "A09",
+      "A10",
+      "A11",
+      "A12",
+      "A13",
+      "A14",
+      "A15",
+      "A16",
+      "A17",
+      "A18",
+      "A19",
+      "A20",
+      "A21",
+      "A22",
+      "A23",
+      "A24",
+      "A25",
+      "A26",
+      "A27",
+      "A28",
+      "A29"
+    ],
+    "pending": [
+      "A30",
+      "A31",
+      "A32"
+    ],
+    "passedCount": 29,
+    "total": 32
+  },
+  "inProgressCandidate": {
+    "baseCommit": "1527de5c",
+    "sourceInputCount": 2479,
+    "sourceFingerprintEvidence": ".cache/delivery/t11-final/a30-followup/candidate-inputs-current.json",
+    "productCommitted": false,
+    "associated": {
+      "executed": 50,
+      "failed": 0,
+      "skipped": 3
+    },
+    "native": "0 executed; host remained ready and hit 300-second timeout after Cua reported Mac locked",
+    "failureEvidence": "v0.1-evidence.md section 99",
+    "temporaryDiagnosticCodeRemoved": true
+  }
 }
