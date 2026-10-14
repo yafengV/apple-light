@@ -258,48 +258,39 @@
     "checksScope": "Existing checks remain bound to these historical commits, not the new source candidate."
   },
   "currentCandidate": {
-    "stage": "A30 core composer placement and explicit native model-popover return focus",
-    "productCommit": "0332fa3efa37df9f9387b8e0a50f85aa8736bd47",
+    "stage": "A30 core timeline and turn-card same-window review",
+    "productCommit": "e5159e1ce3a245291fffd1d2185d7c9a45bfee4b",
     "A30Accepted": false,
     "A31Accepted": false,
     "A32Accepted": false,
-    "sourceInputCount": 2481,
-    "sourceFingerprintEvidence": ".cache/delivery/t11-final/core-ui-final/source-inputs.json",
-    "sourceFingerprintSHA256": "30d58edabb255f4cbb0abb2ca974c2913304bc9371bf939499cc3fb397ac3525",
+    "sourceInputCount": 2487,
+    "sourceFingerprintSHA256": "9e90e11c502bb8c99e1b8875657b21f4eb7946c93a1075ab92b990197536234f",
+    "changedInputs": [],
     "associated": {
-      "executed": 30,
-      "failed": 0,
-      "skipped": 1,
-      "log": ".cache/delivery/t11-final/core-ui-final/cancel-associated-tests.log",
-      "requiredSkip": "testNativeModelPopoverDismissalReturnsTheFirstQueuedKeyToComposer"
-    },
-    "native": {
-      "executed": 1,
+      "finalExecuted": 46,
       "failed": 0,
       "skipped": 0,
-      "manifest": ".cache/delivery/t11-final/core-ui-final/foreground-model-cancel/manifest.json",
-      "manifestSHA256": "12424eefd7b560310a071b491e4df645b2d7e08f1f9ce4a585cfbbb3840e4c92",
-      "changedInputs": []
+      "log": "associated-candidate.log",
+      "previousBroaderExecuted": 58,
+      "overlappingDoNotAdd": true
     },
-    "mandatoryForegroundMethodCount": 25,
     "formalApp": {
-      "path": "dist/ShipiOS.app",
-      "sha256": "a7a09c908d6eb945bc11b212b84a1f2682d82ed641dd2d6fe0307d42556a19eb",
+      "SHA256": "69a90c0d78ddb2efa78aa175f8ee199aaefe77cf1c943c6de0225b11f0c23346",
       "strictSignatureVerified": true,
-      "originalUserInstanceRestoredAndInputClicked": true
+      "userInstanceRestoredAndInputClicked": true
     },
     "geometry": {
       "wide": {
         "active": true,
         "actualHeight": 800,
         "actualWidth": 1280,
-        "backingScale": 2,
+        "backingScale": 1,
         "contentHeight": 748,
         "contentWidth": 1280,
         "fullyVisibleOnOneScreen": true,
         "key": true,
         "matchesRequestedFrame": true,
-        "pid": 14010,
+        "pid": 31232,
         "requestedHeight": 800,
         "requestedWidth": 1280,
         "targetDisplayAvailable": true,
@@ -323,13 +314,13 @@
         "active": true,
         "actualHeight": 700,
         "actualWidth": 1000,
-        "backingScale": 2,
+        "backingScale": 1,
         "contentHeight": 648,
         "contentWidth": 1000,
         "fullyVisibleOnOneScreen": true,
         "key": true,
         "matchesRequestedFrame": true,
-        "pid": 14311,
+        "pid": 32394,
         "requestedHeight": 700,
         "requestedWidth": 1000,
         "targetDisplayAvailable": true,
@@ -351,66 +342,27 @@
       }
     },
     "protection": {
-      "user": {
-        "protectedUnchanged": true,
-        "modelUnchanged": true,
-        "preferencesUnchanged": true,
-        "runs": 9
-      },
-      "controlled": {
-        "protectedUnchanged": true,
-        "modelUnchanged": true,
-        "preferencesUnchanged": true,
-        "runs": 9
-      }
+      "user": "seven fields, nine runs, model and five preferences unchanged",
+      "fixture": "six fields unchanged; task added only normalized createdAt/updatedAt; draft preserved; model/preferences unchanged"
     },
-    "productActions": [
-      "Wide: Esc then immediate a retained; Done then immediate b retained",
-      "Narrow cold launch: Esc then immediate c retained",
-      "Test-only characters cleared; only new empty controlled draft entry removed under exact baseline-hash guard",
-      "Original user instance restored, empty composer actually clicked; no model request sent"
-    ],
-    "layoutEvidence": "New-task/main timeline in narrow/wide and dark/light; six core settings wide dark/light overview captured before native-popover change; settings sources unchanged. This does not close all core page pairing.",
-    "knownGaps": [
-      "Official core timeline/content/review page references remain incomplete",
-      "Task-window model picker has not been changed or newly accepted by this main-composer fix",
-      "A31 final full suite not run; A32 pending"
-    ],
-    "failedEvidence": [
-      "foreground-model: 1 method/12 assertions, host inactive at first assertion",
-      "SwiftUI/native transient Escape swallowed return-focus callback before final monitor; formal first-key failures retained in tool trace"
-    ],
-    "screenshots": {
-      "appearance-wide-dark.jpg": "532580950b285f89dc953ffcd48fc7dc04209922532369fd1be774bccd967f07",
-      "appearance-wide-light.jpg": "5893b870a8ec175e04be7f40927bc841048f0ecc928b183448eca592c38fe9b3",
-      "configuration-wide-dark.jpg": "42e59a6c369a4b1adb7b750c728d07da641c8c45730f534b5fd5d137cf3a0429",
-      "configuration-wide-light.jpg": "cbf74ea824c0eb88dd99dbd266ca075014333119037003597e54ffa8f3b475a9",
-      "final-narrow-escape-first-key.jpg": "51801c7d03348dc7db969d9242e06a33dd82387585cf0ad112174dba1f055170",
-      "final-wide-done-first-key.jpg": "08a65dd660f4612df1035bab2ca31441a560db7ec71e7d8a07d682ff661eab5c",
-      "final-wide-escape-first-key.jpg": "da11c8e1883108c54e4c04be34a565702c660abf54b85c9b2243686adefbf0ab",
-      "general-wide-dark.jpg": "7bb95fe18292861e8fe9d83a34341753fe8938cdffec6bf2a54bf1cccef8d9d4",
-      "general-wide-light.jpg": "8ea5a30d72fc714d8a25b1a82cf85c94badb47199bec30bf9e1f97603d1605c1",
-      "git-wide-dark.jpg": "ed285176cefe1c6a911f17e0d59425d7d218b120e694827977075d8c75819eed",
-      "git-wide-light.jpg": "7b0b35e47f19e080b989f3ceb648c92d8929ded76c7629c778f646b2a56af879",
-      "model-menu-unavailable-service.jpg": "0ef6a75392cdc9be8ca17100edfd4a3c559ca2c5e199e50817690efd7a180b28",
-      "model-return-focused-input.jpg": "c94c98ae0b2e9ef1ff81f7b9506e6b5a11c860ff2e23f4c5e7b7e68f245a4426",
-      "new-task-before.jpg": "394c53d02e0c32b95807c0437ba0ec86657af6e743fb4f326b2e877bb09266e8",
-      "new-task-narrow-dark.jpg": "197ce92b27cd22f641d67da68fa416444fefcbe4f12092999eec483e8ce62f46",
-      "new-task-narrow-light.jpg": "9cc512cc938606ebbc60989585891f742341252e3fedfa69cf29af2fcfef20cc",
-      "new-task-wide-dark.jpg": "21f7925777c49fe51cf7a409d463d09acd6212b10ac9a48e17b5041bff12487e",
-      "new-task-wide-light.jpg": "dcd00711594729b3986eab6d4949f57126487e8ba488af22f4e97dc251e6e1c6",
-      "personalization-wide-dark.jpg": "653f8624e3ff58a2a4c86ddb5e336f8c5a7b4a9260e355abf80af31dac11ae80",
-      "personalization-wide-light.jpg": "34caaad7d076c829cf13f2e3327e84bcdc63e66154afa7171c834aa8cbe865c4",
-      "restored-user-input.jpg": "a5852d169b6b4fc4dbcfcb126198f91aace9a8444f278af10e620b2620976380",
-      "search-narrow-light.jpg": "4fdb540c5292c02ab0a31e920a25f904376ce9f143d19230e0a3cc60c245ea4f",
-      "shortcuts-wide-dark.jpg": "803457607e01e5f5ec7a7964919c6b4c693fa5e8179159529a3e0c242da5ec40",
-      "shortcuts-wide-light.jpg": "a71f286c75a197aec5fdbe112eedf52811ac4bb558fd8a63a7dbc6762a988dfb",
-      "timeline-narrow-light.jpg": "7f2a72342ba7ff2105ecac27bf15ef1422e2ccd5621fbfa99217d929c6b109bc",
-      "timeline-wide-dark.jpg": "48a958bb2ac49fe93707d1ebef7a9531c9bd27deb265d0fce96819e15f3030de",
-      "timeline-wide-light.jpg": "d7526a17c0539f2aa3416274bc925ae8a49d2b249998e7917c49cde27e72e3b9"
+    "fixture": {
+      "realModelRun": false,
+      "files": 2,
+      "additions": 3,
+      "deletions": 1,
+      "malformedSubagentDraftsCorrectedBeforeAcceptance": true
     },
-    "stageEvidence": ".cache/delivery/t11-final/core-ui-final/verified-stage.json",
-    "stageEvidenceSHA256": "c0da46f8864f5a012f460628b30b02fe95a2e534d93cb643165a4bbb321ce8fa"
+    "actualInteractions": [
+      "main card opens same-window right last-turn review",
+      "full review returns to chat with draft and immediate first key",
+      "raw snapshot sheet closes with file list/counts retained",
+      "independent card opens own read-only last-turn review; hide returns immediate first key"
+    ],
+    "matrix": "main timeline/split: 1280x800 and 1000x700, light/dark; independent route representative only",
+    "remainingMaterialDifference": "Review file tree/filter vs current jump popover remains to implement",
+    "mandatoryForegroundMethods": 25,
+    "evidence": ".cache/delivery/t11-final/core-reference-batch/verified-stage.json",
+    "evidenceSHA256": "54a280996f4d9bbac71599cce651db5ab4f4a0c0336c12f0bd1dba2bd37dc00b"
   },
   "legacyTopLevelCandidateFields": "productCommit, testCommit, sourceInputCount, changedInputs, checks and artifacts retain their historical candidate binding; currentCandidate identifies the new product.",
   "priorAcceptedCandidate": {
@@ -794,5 +746,160 @@
     "commit": "dd34b864d11d876f8c30cc0e119a80390ed6c9a0",
     "stageEvidence": ".cache/delivery/t11-final/a30-manual-batch2b/verified-stage.json",
     "stageEvidenceSHA256": "3581473dff3cc9aff8f861684a2152025da697a9f6178b53de79975d7701d885"
+  },
+  "previousCoreComposerCandidate": {
+    "stage": "A30 core composer placement and explicit native model-popover return focus",
+    "productCommit": "0332fa3efa37df9f9387b8e0a50f85aa8736bd47",
+    "A30Accepted": false,
+    "A31Accepted": false,
+    "A32Accepted": false,
+    "sourceInputCount": 2481,
+    "sourceFingerprintEvidence": ".cache/delivery/t11-final/core-ui-final/source-inputs.json",
+    "sourceFingerprintSHA256": "30d58edabb255f4cbb0abb2ca974c2913304bc9371bf939499cc3fb397ac3525",
+    "associated": {
+      "executed": 30,
+      "failed": 0,
+      "skipped": 1,
+      "log": ".cache/delivery/t11-final/core-ui-final/cancel-associated-tests.log",
+      "requiredSkip": "testNativeModelPopoverDismissalReturnsTheFirstQueuedKeyToComposer"
+    },
+    "native": {
+      "executed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "manifest": ".cache/delivery/t11-final/core-ui-final/foreground-model-cancel/manifest.json",
+      "manifestSHA256": "12424eefd7b560310a071b491e4df645b2d7e08f1f9ce4a585cfbbb3840e4c92",
+      "changedInputs": []
+    },
+    "mandatoryForegroundMethodCount": 25,
+    "formalApp": {
+      "path": "dist/ShipiOS.app",
+      "sha256": "a7a09c908d6eb945bc11b212b84a1f2682d82ed641dd2d6fe0307d42556a19eb",
+      "strictSignatureVerified": true,
+      "originalUserInstanceRestoredAndInputClicked": true
+    },
+    "geometry": {
+      "wide": {
+        "active": true,
+        "actualHeight": 800,
+        "actualWidth": 1280,
+        "backingScale": 2,
+        "contentHeight": 748,
+        "contentWidth": 1280,
+        "fullyVisibleOnOneScreen": true,
+        "key": true,
+        "matchesRequestedFrame": true,
+        "pid": 14010,
+        "requestedHeight": 800,
+        "requestedWidth": 1280,
+        "targetDisplayAvailable": true,
+        "visible": true,
+        "visibleScreenFrames": [
+          {
+            "height": 996,
+            "width": 1710,
+            "x": 0,
+            "y": 77
+          },
+          {
+            "height": 1050,
+            "width": 1920,
+            "x": -1920,
+            "y": 27
+          }
+        ]
+      },
+      "narrow": {
+        "active": true,
+        "actualHeight": 700,
+        "actualWidth": 1000,
+        "backingScale": 2,
+        "contentHeight": 648,
+        "contentWidth": 1000,
+        "fullyVisibleOnOneScreen": true,
+        "key": true,
+        "matchesRequestedFrame": true,
+        "pid": 14311,
+        "requestedHeight": 700,
+        "requestedWidth": 1000,
+        "targetDisplayAvailable": true,
+        "visible": true,
+        "visibleScreenFrames": [
+          {
+            "height": 996,
+            "width": 1710,
+            "x": 0,
+            "y": 77
+          },
+          {
+            "height": 1050,
+            "width": 1920,
+            "x": -1920,
+            "y": 27
+          }
+        ]
+      }
+    },
+    "protection": {
+      "user": {
+        "protectedUnchanged": true,
+        "modelUnchanged": true,
+        "preferencesUnchanged": true,
+        "runs": 9
+      },
+      "controlled": {
+        "protectedUnchanged": true,
+        "modelUnchanged": true,
+        "preferencesUnchanged": true,
+        "runs": 9
+      }
+    },
+    "productActions": [
+      "Wide: Esc then immediate a retained; Done then immediate b retained",
+      "Narrow cold launch: Esc then immediate c retained",
+      "Test-only characters cleared; only new empty controlled draft entry removed under exact baseline-hash guard",
+      "Original user instance restored, empty composer actually clicked; no model request sent"
+    ],
+    "layoutEvidence": "New-task/main timeline in narrow/wide and dark/light; six core settings wide dark/light overview captured before native-popover change; settings sources unchanged. This does not close all core page pairing.",
+    "knownGaps": [
+      "Official core timeline/content/review page references remain incomplete",
+      "Task-window model picker has not been changed or newly accepted by this main-composer fix",
+      "A31 final full suite not run; A32 pending"
+    ],
+    "failedEvidence": [
+      "foreground-model: 1 method/12 assertions, host inactive at first assertion",
+      "SwiftUI/native transient Escape swallowed return-focus callback before final monitor; formal first-key failures retained in tool trace"
+    ],
+    "screenshots": {
+      "appearance-wide-dark.jpg": "532580950b285f89dc953ffcd48fc7dc04209922532369fd1be774bccd967f07",
+      "appearance-wide-light.jpg": "5893b870a8ec175e04be7f40927bc841048f0ecc928b183448eca592c38fe9b3",
+      "configuration-wide-dark.jpg": "42e59a6c369a4b1adb7b750c728d07da641c8c45730f534b5fd5d137cf3a0429",
+      "configuration-wide-light.jpg": "cbf74ea824c0eb88dd99dbd266ca075014333119037003597e54ffa8f3b475a9",
+      "final-narrow-escape-first-key.jpg": "51801c7d03348dc7db969d9242e06a33dd82387585cf0ad112174dba1f055170",
+      "final-wide-done-first-key.jpg": "08a65dd660f4612df1035bab2ca31441a560db7ec71e7d8a07d682ff661eab5c",
+      "final-wide-escape-first-key.jpg": "da11c8e1883108c54e4c04be34a565702c660abf54b85c9b2243686adefbf0ab",
+      "general-wide-dark.jpg": "7bb95fe18292861e8fe9d83a34341753fe8938cdffec6bf2a54bf1cccef8d9d4",
+      "general-wide-light.jpg": "8ea5a30d72fc714d8a25b1a82cf85c94badb47199bec30bf9e1f97603d1605c1",
+      "git-wide-dark.jpg": "ed285176cefe1c6a911f17e0d59425d7d218b120e694827977075d8c75819eed",
+      "git-wide-light.jpg": "7b0b35e47f19e080b989f3ceb648c92d8929ded76c7629c778f646b2a56af879",
+      "model-menu-unavailable-service.jpg": "0ef6a75392cdc9be8ca17100edfd4a3c559ca2c5e199e50817690efd7a180b28",
+      "model-return-focused-input.jpg": "c94c98ae0b2e9ef1ff81f7b9506e6b5a11c860ff2e23f4c5e7b7e68f245a4426",
+      "new-task-before.jpg": "394c53d02e0c32b95807c0437ba0ec86657af6e743fb4f326b2e877bb09266e8",
+      "new-task-narrow-dark.jpg": "197ce92b27cd22f641d67da68fa416444fefcbe4f12092999eec483e8ce62f46",
+      "new-task-narrow-light.jpg": "9cc512cc938606ebbc60989585891f742341252e3fedfa69cf29af2fcfef20cc",
+      "new-task-wide-dark.jpg": "21f7925777c49fe51cf7a409d463d09acd6212b10ac9a48e17b5041bff12487e",
+      "new-task-wide-light.jpg": "dcd00711594729b3986eab6d4949f57126487e8ba488af22f4e97dc251e6e1c6",
+      "personalization-wide-dark.jpg": "653f8624e3ff58a2a4c86ddb5e336f8c5a7b4a9260e355abf80af31dac11ae80",
+      "personalization-wide-light.jpg": "34caaad7d076c829cf13f2e3327e84bcdc63e66154afa7171c834aa8cbe865c4",
+      "restored-user-input.jpg": "a5852d169b6b4fc4dbcfcb126198f91aace9a8444f278af10e620b2620976380",
+      "search-narrow-light.jpg": "4fdb540c5292c02ab0a31e920a25f904376ce9f143d19230e0a3cc60c245ea4f",
+      "shortcuts-wide-dark.jpg": "803457607e01e5f5ec7a7964919c6b4c693fa5e8179159529a3e0c242da5ec40",
+      "shortcuts-wide-light.jpg": "a71f286c75a197aec5fdbe112eedf52811ac4bb558fd8a63a7dbc6762a988dfb",
+      "timeline-narrow-light.jpg": "7f2a72342ba7ff2105ecac27bf15ef1422e2ccd5621fbfa99217d929c6b109bc",
+      "timeline-wide-dark.jpg": "48a958bb2ac49fe93707d1ebef7a9531c9bd27deb265d0fce96819e15f3030de",
+      "timeline-wide-light.jpg": "d7526a17c0539f2aa3416274bc925ae8a49d2b249998e7917c49cde27e72e3b9"
+    },
+    "stageEvidence": ".cache/delivery/t11-final/core-ui-final/verified-stage.json",
+    "stageEvidenceSHA256": "c0da46f8864f5a012f460628b30b02fe95a2e534d93cb643165a4bbb321ce8fa"
   }
 }
